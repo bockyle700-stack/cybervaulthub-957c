@@ -1,0 +1,23 @@
+[
+  {
+    "timestamp": "11/19/2026, 10:18:16 PM",
+    "type": "Auth",
+    "name": "Admin",
+    "description": "Admin logged in",
+    "device": "Android Device"
+  },
+  {
+    "timestamp": "11/19/2026, 10:18:06 PM",
+    "type": "Alert",
+    "name": "Unknown",
+    "description": "Failed admin login attempt",
+    "device": "Android Device"
+  },
+  {
+    "timestamp": "11/19/2026, 10:17:27 PM",
+    "type": "Visit",
+    "name": "Kyle",
+    "description": "Entered CyberVault Hub",
+    "device": "Android Device"
+  }
+]

@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>CYBERVAULT // Cloud Drop &amp; Media Node</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Space+Grotesk:wght@500;700&display=swap');
+    body { font-family: 'Space Grotesk', sans-serif; background: #050810; color: #e2e8f0; }
+    code, pre, .mono { font-family: 'JetBrains Mono', monospace; }
+    .cyber-panel { background: rgba(13, 19, 34, 0.82); backdrop-filter: blur(14px); border: 1px solid rgba(56, 189, 248, 0.18); }
+    .cyber-card { background: rgba(17, 25, 44, 0.72); border: 1px solid rgba(148, 163, 184, 0.14); transition: all 0.2s ease; }
+    .cyber-card:hover { border-color: rgba(56, 189, 248, 0.45); transform: translateY(-2px); }
+    .tab-active { background: linear-gradient(135deg, #06b6d4, #6366f1); color: #040812; font-weight: 700; }
+  </style>
+</head>
+<body class="min-h-screen selection:bg-cyan-400 selection:text-slate-950">
+
+  <!-- Top Navigation -->
+  <header class="cyber-panel sticky top-0 z-40 border-b border-cyan-500/20">
+    <div class="max-w-6xl mx-auto px-4 py-3 flex flex-wrap items-center justify-between gap-3">
+      <div class="flex items-center gap-3">
+        <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-cyan-400 to-indigo-600 flex items-center justify-center text-slate-950 font-extrabold shadow-lg shadow-cyan-500/25">
+          ◈
+        </div>
+        <div>
+          <h1 class="text-base sm:text-lg font-bold tracking-wide text-white">CYBERVAULT <span class="text-cyan-400 text-xs mono">v2.6</span></h1>
+          <p id="telemetryLine" class="text-[11px] text-slate-400 mono">Connecting to node telemetry...</p>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-2">
+        <button id="logsBtn" onclick="openLogsModal()" class="hidden bg-slate-900 hover:bg-slate-800 border border-cyan-500/30 text-cyan-300 px-3 py-1.5 rounded-lg text-xs font-bold">
+          📡 Logs
+        </button>
+        <button id="authBtn" onclick="openLoginModal()" class="bg-cyan-500 hover:bg-cyan-400 text-slate-950 px-3.5 py-1.5 rounded-lg text-xs font-bold transition">
+          Admin Login
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <main class="max-w-6xl mx-auto px-4 py-6">
+    <!-- Navigation Tabs -->
+    <div class="flex flex-wrap items-center justify-between gap-3 mb-6">
+      <div class="inline-flex p-1 rounded-xl bg-slate-900/90 border border-slate-800 gap-1">
+        <button id="tabVaultBtn" onclick="switchTab('vault')" class="px-4 py-2 rounded-lg text-xs tab-active transition">
+          🗂️ Media &amp; File Vault
+        </button>
+        <button id="tabDropBtn" onclick="switchTab('drop')" class="px-4 py-2 rounded-lg text-xs text-slate-300 hover:text-white transition">
+          📝 Live Dropboard &amp; Snippets
+        </button>
+      </div>
+
+      <input type="search" id="searchInput" oninput="handleSearch()" placeholder="Filter files or notes..." class="bg-slate-900/90 border border-slate-800 rounded-xl px-3.5 py-2 text-xs text-slate-200 w-full sm:w-64 focus:outline-none focus:border-cyan-400" />
+    </div>
+
+    <!-- Admin Controls -->
+    <section id="adminBox" class="hidden cyber-panel rounded-2xl p-4 sm:p-5 mb-6">
+      <div class="text-xs font-bold uppercase tracking-wider text-cyan-400 mb-3">⚡ Root Node Controls</div>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <form id="uploadForm" class="bg-slate-950/70 p-3 rounded-xl border border-slate-800 flex flex-col sm:flex-row gap-2">
+          <input type="file" id="fileInput" multiple class="text-xs text-slate-400 file:mr-2 file:py-1 file:px-3 file:rounded-lg file:border-0 file:bg-cyan-500 file:text-slate-950 file:font-bold cursor-pointer w-full" />
+          <button type="submit" id="uploadBtn" class="bg-cyan-500 hover:bg-cyan-400 text-slate-950 px-4 py-2 rounded-lg text-xs font-bold shrink-0">Upload</button>
+        </form>
+        <form id="mkdirForm" class="bg-slate-950/70 p-3 rounded-xl border border-slate-800 flex flex-col sm:flex-row gap-2">
+          <input type="text" id="folderNameInput" placeholder="Create directory..." class="bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-xs text-slate-200 w-full focus:outline-none focus:border-cyan-400" />
+          <button type="submit" class="bg-slate-800 hover:bg-slate-700 text-white px-4 py-2 rounded-lg text-xs font-bold shrink-0">New Folder</button>
+        </form>
+      </div>
+    </section>
+
+    <!-- TAB 1: VAULT -->
+    <section id="vaultSection">
+      <div id="breadcrumbs" class="cyber-panel rounded-xl px-4 py-2.5 mb-5 text-xs flex items-center gap-1.5 overflow-x-auto"></div>
+      <div id="vaultGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4"></div>
+    </section>
+
+    <!-- TAB 2: DROPBOARD -->
+    <section id="dropSection" class="hidden">
+      <form id="noteForm" class="cyber-panel rounded-2xl p-4 sm:p-5 mb-6 space-y-3">
+        <div class="text-xs font-bold uppercase tracking-wider text-indigo-400">📡 Broadcast Text / Code Snippet</div>
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <input type="text" id="noteTitle" placeholder="Title (e.g. Server IP, Script, Note)" class="sm:col-span-2 bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2 text-xs text-slate-200 focus:outline-none focus:border-cyan-400" required />
+          <select id="noteTag" class="bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-cyan-400">
+            <option value="General">Tag: General</option>
+            <option value="Code">Tag: Code / Shell</option>
+            <option value="Link">Tag: Link / Config</option>
+            <option value="Pinned">Tag: Important</option>
+          </select>
+        </div>
+        <textarea id="noteContent" rows="3" placeholder="Paste text, commands, or notes to share across devices on this network..." class="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-xs text-slate-200 mono focus:outline-none focus:border-cyan-400" required></textarea>
+        <div class="flex justify-end">
+          <button type="submit" class="bg-gradient-to-r from-cyan-500 to-indigo-500 text-slate-950 px-5 py-2 rounded-xl text-xs font-bold">Post to Dropboard</button>
+        </div>
+      </form>
+
+      <div id="notesGrid" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
+    </section>
+  </main>
+
+  <!-- Visitor Modal -->
+  <div id="visitorModal" class="fixed inset-0 bg-black/85 backdrop-blur-md flex items-center justify-center p-4 z-50">
+    <div class="cyber-panel p-6 rounded-2xl max-w-sm w-full border border-cyan-500/30 shadow-2xl">
+      <h2 class="text-base font-bold text-white mb-1">Identify Terminal Session</h2>
+      <p class="text-xs text-slate-400 mb-4">Enter a display name or handle to enter the node.</p>
+      <input type="text" id="visitorNameInput" placeholder="e.g. Kyle / Guest-01" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-xs text-white mb-4 focus:outline-none focus:border-cyan-400" />
+      <button onclick="submitVisitor()" class="w-full bg-cyan-500 hover:bg-cyan-400 text-slate-950 py-2.5 rounded-xl text-xs font-bold">Connect</button>
+    </div>
+  </div>
+
+  <!-- Admin Login Modal -->
+  <div id="loginModal" class="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 hidden z-50">
+    <div class="cyber-panel p-6 rounded-2xl max-w-sm w-full">
+      <h3 class="text-base font-bold text-white mb-3">🔐 Admin Authentication</h3>
+      <input type="password" id="passwordInput" placeholder="Enter Admin Password" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-xs text-white mb-4 focus:outline-none focus:border-cyan-400" />
+      <div class="flex justify-end gap-2">
+        <button onclick="closeLoginModal()" class="px-4 py-2 text-xs text-slate-400">Cancel</button>
+        <button onclick="submitLogin()" class="bg-cyan-500 text-slate-950 px-4 py-2 rounded-xl text-xs font-bold">Unlock</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Activity Logs Modal -->
+  <div id="logsModal" class="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 hidden z-50">
+    <div class="cyber-panel p-5 rounded-2xl max-w-4xl w-full max-h-[85vh] flex flex-col">
+      <div class="flex justify-between items-center pb-3 mb-3 border-b border-slate-800">
+        <h3 class="text-sm font-bold text-cyan-400">📡 Live Node Telemetry &amp; Access Logs</h3>
+        <button onclick="closeLogsModal()" class="text-slate-400 hover:text-white text-sm font-bold">✕</button>
+      </div>
+      <div class="overflow-y-auto flex-1 rounded-xl border border-slate-800 bg-slate-950/90">
+        <table class="w-full text-left text-xs">
+          <thead class="bg-slate-900 text-cyan-300 text-[10px] uppercase sticky top-0">
+            <tr><th class="p-2.5">Time</th><th class="p-2.5">User</th><th class="p-2.5">Device</th><th class="p-2.5">Type</th><th class="p-2.5">Event</th></tr>
+          </thead>
+          <tbody id="logsBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Fullscreen Preview Modal -->
+  <div id="previewModal" class="fixed inset-0 bg-black/95 flex items-center justify-center p-4 hidden z-50" onclick="closePreview()">
+    <button onclick="closePreview()" class="absolute top-4 right-4 bg-slate-800 text-white rounded-full px-3 py-1.5 text-xs font-bold">✕ Close</button>
+    <div id="previewContent" class="max-w-full max-h-full flex items-center justify-center" onclick="event.stopPropagation()"></div>
+  </div>
+
+  <script>
+    let currentFolder = '';
+    let isAdmin = false;
+    let cachedFiles = [];
+    let cachedNotes = [];
+    let activeTab = 'vault';
+
+    function switchTab(tab) {
+      activeTab = tab;
+      document.getElementById('vaultSection').classList.toggle('hidden', tab !== 'vault');
+      document.getElementById('dropSection').classList.toggle('hidden', tab !== 'drop');
+      document.getElementById('tabVaultBtn').className = tab === 'vault' ? 'px-4 py-2 rounded-lg text-xs tab-active transition' : 'px-4 py-2 rounded-lg text-xs text-slate-300 hover:text-white transition';
+      document.getElementById('tabDropBtn').className = tab === 'drop' ? 'px-4 py-2 rounded-lg text-xs tab-active transition' : 'px-4 py-2 rounded-lg text-xs text-slate-300 hover:text-white transition';
+      if (tab === 'drop') loadNotes();
+    }
+
+    async function refreshTelemetry() {
+      try {
+        const res = await fetch('/api/telemetry');
+        const t = await res.json();
+        document.getElementById('telemetryLine').textContent = `${t.platform} • RAM ${t.ramUsedMB}/${t.ramTotalMB}MB • Uptime ${t.uptimeSec}s`;
+      } catch (e) {}
+    }
+
+    async function checkAuth() {
+      if (!sessionStorage.getItem('cv_session')) {
+        await fetch('/api/clear-visitor', { method: 'POST' });
+      }
+      const res = await fetch('/api/auth-status');
+      const data = await res.json();
+      isAdmin = data.isAdmin;
+
+      document.getElementById('adminBox').classList.toggle('hidden', !isAdmin);
+      document.getElementById('logsBtn').classList.toggle('hidden', !isAdmin);
+      const authBtn = document.getElementById('authBtn');
+      authBtn.textContent = isAdmin ? 'Logout' : 'Admin Login';
+      authBtn.onclick = isAdmin ? logout : openLoginModal;
+
+      if (!data.visitorName) {
+        document.getElementById('visitorModal').classList.remove('hidden');
+      } else {
+        document.getElementById('visitorModal').classList.add('hidden');
+        loadFiles(currentFolder);
+        loadNotes();
+      }
+    }
+
+    async function submitVisitor() {
+      const name = document.getElementById('visitorNameInput').value.trim();
+      if (!name) return alert('Enter a display name.');
+      const res = await fetch('/api/log-visit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name })
+      });
+      if (res.ok) {
+        sessionStorage.setItem('cv_session', '1');
+        document.getElementById('visitorModal').classList.add('hidden');
+        loadFiles(currentFolder);
+        loadNotes();
+      }
+    }
+
+    function openLoginModal() { document.getElementById('loginModal').classList.remove('hidden'); }
+    function closeLoginModal() { document.getElementById('loginModal').classList.add('hidden'); }
+
+    async function submitLogin() {
+      const password = document.getElementById('passwordInput').value;
+      const res = await fetch('/api/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password })
+      });
+      if (res.ok) {
+        document.getElementById('passwordInput').value = '';
+        closeLoginModal();
+        checkAuth();
+      } else {
+        alert('Invalid admin password.');
+      }
+    }
+
+    async function logout() {
+      await fetch('/api/logout', { method: 'POST' });
+      checkAuth();
+    }
+
+    async function openLogsModal() {
+      document.getElementById('logsModal').classList.remove('hidden');
+      const res = await fetch('/api/logs');
+      if (!res.ok) return;
+      const logs = await res.json();
+      document.getElementById('logsBody').innerHTML = logs.map((l) => `
+        <tr class="border-b border-slate-800/70">
+          <td class="p-2.5 text-slate-400 whitespace-nowrap">${l.timestamp}</td>
+          <td class="p-2.5 font-bold text-cyan-300">${l.name}</td>
+          <td class="p-2.5 mono text-slate-300">${l.device}</td>
+          <td class="p-2.5 font-bold text-indigo-400">${l.type}</td>
+          <td class="p-2.5 text-slate-300">${l.description}</td>
+        </tr>
+      `).join('') || '<tr><td colspan="5" class="p-4 text-center text-slate-500">No logs recorded yet.</td></tr>';
+    }
+    function closeLogsModal() { document.getElementById('logsModal').classList.add('hidden'); }
+
+    function renderBreadcrumbs() {
+      const parts = currentFolder.split('/').filter(Boolean);
+      let html = `<button onclick="loadFiles('')" class="text-cyan-400 font-bold hover:underline">/vault</button>`;
+      let acc = '';
+      for (const p of parts) {
+        acc = acc ? `${acc}/${p}` : p;
+        html += `<span class="text-slate-600">/</span><button onclick="loadFiles('${acc}')" class="text-cyan-400 font-bold hover:underline">${p}</button>`;
+      }
+      document.getElementById('breadcrumbs').innerHTML = html;
+    }
+
+    async function loadFiles(folder = '') {
+      currentFolder = folder;
+      renderBreadcrumbs();
+      const res = await fetch(`/api/files?folder=${encodeURIComponent(folder)}`);
+      const data = await res.json();
+      cachedFiles = data.items || [];
+      renderFiles();
+    }
+
+    function renderFiles() {
+      const q = document.getElementById('searchInput').value.trim().toLowerCase();
+      const items = q ? cachedFiles.filter((i) => i.name.toLowerCase().includes(q)) : cachedFiles;
+      const grid = document.getElementById('vaultGrid');
+      grid.innerHTML = '';
+      if (!items.length) {
+        grid.innerHTML = `<div class="col-span-full text-center py-14 text-slate-500 text-xs">No files found in this directory.</div>`;
+        return;
+      }
+      for (const item of items) {
+        const card = document.createElement('div');
+        card.className = 'cyber-card rounded-2xl p-3.5 flex flex-col justify-between gap-3';
+        const dlUrl = `/api/download?path=${encodeURIComponent(item.relPath)}`;
+        const delBtn = isAdmin ? `<button onclick="deleteItem('${item.relPath}')" class="w-full bg-rose-600/80 hover:bg-rose-600 text-white py-1.5 rounded-xl text-xs font-bold">Delete</button>` : '';
+
+        if (item.type === 'folder') {
+          card.innerHTML = `<div onclick="loadFiles('${item.relPath}')" class="cursor-pointer flex items-center gap-3 py-2"><span class="text-2xl">📁</span><span class="text-xs font-bold text-white truncate">${item.name}</span></div>${delBtn}`;
+        } else if (item.type === 'image') {
+          card.innerHTML = `<img src="${item.url}" loading="lazy" onclick="openPreview('${item.url}','image')" class="w-full h-36 object-cover rounded-xl bg-slate-950 cursor-pointer" /><div class="text-xs font-semibold truncate">${item.name}</div><div class="space-y-1.5"><a href="${dlUrl}" class="block text-center bg-slate-800 hover:bg-cyan-500 hover:text-slate-950 py-1.5 rounded-xl text-xs font-bold transition">Download</a>${delBtn}</div>`;
+        } else if (item.type === 'video') {
+          card.innerHTML = `<video src="${item.url}" preload="metadata" onclick="openPreview('${item.url}','video')" class="w-full h-36 object-cover rounded-xl bg-black cursor-pointer"></video><div class="text-xs font-semibold truncate">${item.name}</div><div class="space-y-1.5"><a href="${dlUrl}" class="block text-center bg-slate-800 hover:bg-cyan-500 hover:text-slate-950 py-1.5 rounded-xl text-xs font-bold transition">Download</a>${delBtn}</div>`;
+        } else {
+          card.innerHTML = `<div class="flex items-center gap-2.5 py-2"><span class="text-2xl">📄</span><span class="text-xs font-semibold truncate">${item.name}</span></div><div class="space-y-1.5"><a href="${dlUrl}" class="block text-center bg-slate-800 hover:bg-cyan-500 hover:text-slate-950 py-1.5 rounded-xl text-xs font-bold transition">Download</a>${delBtn}</div>`;
+        }
+        grid.appendChild(card);
+      }
+    }
+
+    async function loadNotes() {
+      const res = await fetch('/api/notes');
+      cachedNotes = await res.json();
+      renderNotes();
+    }
+
+    function renderNotes() {
+      const q = document.getElementById('searchInput').value.trim().toLowerCase();
+      const list = q ? cachedNotes.filter((n) => n.title.toLowerCase().includes(q) || n.content.toLowerCase().includes(q)) : cachedNotes;
+      const grid = document.getElementById('notesGrid');
+      grid.innerHTML = '';
+      if (!list.length) {
+        grid.innerHTML = `<div class="col-span-full text-center py-12 text-slate-500 text-xs">No notes posted yet.</div>`;
+        return;
+      }
+      for (const n of list) {
+        const card = document.createElement('div');
+        card.className = 'cyber-card rounded-2xl p-4 flex flex-col justify-between gap-3';
+        const delBtn = isAdmin ? `<button onclick="deleteNote('${n.id}')" class="text-rose-400 hover:text-rose-300 text-xs font-bold">Delete</button>` : '';
+        card.innerHTML = `
+          <div>
+            <div class="flex items-center justify-between gap-2 mb-2">
+              <span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-cyan-500/15 text-cyan-300 border border-cyan-500/30">${n.tag}</span>
+              <span class="text-[10px] text-slate-400">${n.createdAt}</span>
+            </div>
+            <h3 class="text-sm font-bold text-white mb-2">${n.title}</h3>
+            <pre class="bg-slate-950/90 border border-slate-800 rounded-xl p-3 text-xs text-slate-300 overflow-x-auto whitespace-pre-wrap break-words">${n.content.replace(/</g, '&lt;')}</pre>
+          </div>
+          <div class="flex items-center justify-between text-[11px] text-slate-400 pt-2 border-t border-slate-800/80">
+            <span>By <strong class="text-slate-200">${n.author}</strong></span>
+            <div class="flex items-center gap-3">
+              <button onclick="copyNoteText(this)" data-text="${encodeURIComponent(n.content)}" class="text-cyan-400 hover:underline font-bold">Copy</button>
+              ${delBtn}
+            </div>
+          </div>`;
+        grid.appendChild(card);
+      }
+    }
+
+    function copyNoteText(btn) {
+      navigator.clipboard.writeText(decodeURIComponent(btn.dataset.text));
+      btn.textContent = 'Copied!';
+      setTimeout(() => { btn.textContent = 'Copy'; }, 1500);
+    }
+
+    function handleSearch() {
+      if (activeTab === 'vault') renderFiles();
+      else renderNotes();
+    }
+
+    function openPreview(url, type) {
+      const box = document.getElementById('previewContent');
+      box.innerHTML = type === 'video'
+        ? `<video src="${url}" controls autoplay playsinline class="max-h-[82vh] max-w-full rounded-2xl"></video>`
+        : `<img src="${url}" class="max-h-[82vh] max-w-full rounded-2xl" />`;
+      document.getElementById('previewModal').classList.remove('hidden');
+    }
+    function closePreview() {
+      document.getElementById('previewModal').classList.add('hidden');
+      document.getElementById('previewContent').innerHTML = '';
+    }
+
+    async function deleteItem(relPath) {
+      if (!confirm(`Delete "${relPath}"?`)) return;
+      const res = await fetch('/api/delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ path: relPath })
+      });
+      if (res.ok) loadFiles(currentFolder);
+    }
+
+    async function deleteNote(id) {
+      if (!confirm('Delete this drop?')) return;
+      const res = await fetch(`/api/notes/${id}`, { method: 'DELETE' });
+      if (res.ok) loadNotes();
+    }
+
+    document.getElementById('uploadForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const input = document.getElementById('fileInput');
+      if (!input.files.length) return alert('Choose files first.');
+      const btn = document.getElementById('uploadBtn');
+      btn.disabled = true; btn.textContent = 'Uploading...';
+      const fd = new FormData();
+      for (const f of input.files) fd.append('files', f);
+      fd.append('folder', currentFolder);
+      try {
+        const res = await fetch('/api/upload', { method: 'POST', body: fd });
+        if (res.ok) { input.value = ''; loadFiles(currentFolder); }
+      } finally {
+        btn.disabled = false; btn.textContent = 'Upload';
+      }
+    });
+
+    document.getElementById('mkdirForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const input = document.getElementById('folderNameInput');
+      const name = input.value.trim();
+      if (!name) return;
+      const res = await fetch('/api/mkdir', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ folder: currentFolder, name })
+      });
+      if (res.ok) { input.value = ''; loadFiles(currentFolder); }
+    });
+
+    document.getElementById('noteForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const title = document.getElementById('noteTitle').value;
+      const tag = document.getElementById('noteTag').value;
+      const content = document.getElementById('noteContent').value;
+      const res = await fetch('/api/notes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title, tag, content })
+      });
+      if (res.ok) {
+        document.getElementById('noteTitle').value = '';
+        document.getElementById('noteContent').value = '';
+        loadNotes();
+      }
+    });
+
+    checkAuth();
+    refreshTelemetry();
+    setInterval(refreshTelemetry, 5000);
+  </script>
+</body>
+</html>
